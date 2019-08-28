@@ -21,4 +21,4 @@
   :main app.core
   :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]}
   :profiles {:uberjar {:aot :all}
-             :kaocha  {:dependencies [[lambdaisland/kaocha "0.0-389"]]}})
+             :kaocha  {:dependencies [[lambdaisland/kaocha "0.0-529"]]}})

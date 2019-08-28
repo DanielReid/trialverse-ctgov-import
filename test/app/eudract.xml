@@ -1102,7 +1102,7 @@ sponsor="Novo Nordisk">
 							<value>
 								54
 							</value>
-						</countableValue>
+	read-group-categorical-measurement-values					</countableValue>
 						<countableValue categoryId="maleCategoryId">
 							<value>
 								77

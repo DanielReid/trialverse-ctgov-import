@@ -12,21 +12,15 @@
   (:use [clojusc.ring.xml :only [wrap-xml-request]]
         [clojure.data.xml :only [emit-str]]))
 
-(defn get-info
-  [id]
+(defn get-from-ctgov
+  [id xml-type]
   (:body
     (client/get
-      (str "https://clinicaltrials.gov/show/" (url-encode id) "?displayXml=TRUE"))))
+      (str "https://clinicaltrials.gov/show/" (url-encode id) "?" xml-type "=TRUE"))))
 
-(defn get-record
+(defn do-ctgov-import
   [id]
-  (:body
-    (client/get
-      (str "https://clinicaltrials.gov/show/" (url-encode id) "?resultsXml=TRUE"))))
-
-(defn do-import
-  [id]
-  (import-xml (vtd/navigator (get-record id))))
+  (import-xml (vtd/navigator (get-from-ctgov id "resultsXml"))))
 
 (defn do-eudract-import
   [xml]
@@ -40,7 +34,7 @@
 
 (defn basic-info
   [id]
-  (let [xml (vtd/navigator (get-info id))
+  (let [xml (vtd/navigator (get-from-ctgov id "displayXml"))
         canonical-id (vtd/text (vtd/at xml "/clinical_study/id_info/nct_id"))]
     {:id canonical-id
      :aliases (map vtd/text (vtd/search xml "/clinical_study/id_info/nct_alias"))
@@ -65,14 +59,14 @@
           (throw e))))))
 
 (defroutes app-routes
-  (GET "/" [id] {:status 200
+  (GET "/" [] {:status 200
                  :body   "Go to /NCTXXXXXXXX."})
   (GET "/:id{NCT[0-9]+}" [id] {:status  200
                                :headers {"Content-Type" "application/json"}
                                :body    (json/write-str (basic-info id))})
   (GET "/:id{NCT[0-9]+}/rdf" [id] {:status  200
                                    :headers {"Content-Type" "text/turtle"}
-                                   :body    (do-import id)})
+                                   :body    (do-ctgov-import id)})
   (wrap-xml-request (POST "/eudract"
                       params
                       {:status  200
