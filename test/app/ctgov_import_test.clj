@@ -6,6 +6,7 @@
   (:use app.ctgov-import))
 
 (def sustain-2-xml (vtd/navigator (slurp "test/app/sustain-2.xml")))
+(def sustain-5-xml (vtd/navigator (slurp "test/app/sustain5ctgov.xml")))
 
 (def time-frame-xml-str
   "<clinical_study>
@@ -61,7 +62,6 @@
                              :units      "Participants"}]
     
     (is (= expected-properties found-properties))))
-
 
 (deftest find-adverse-events-xml-test
   (is (= 121 (count (find-adverse-events-xml sustain-2-xml)))))
@@ -143,7 +143,6 @@
                              :units      "percentage of glycosylated haemoglobin"}]
     (is (= expected-properties found-properties))))
 
-
 (deftest baseline-var-type-categorical-test
   (let [param                                "Number"
         category-ids                         '("B1" "B2")
@@ -221,7 +220,77 @@
         expected-group-info {:title       "Semaglutide 0.5 mg + Sitagliptin Placebo"
                              :description "Semaglutide 0.5 mg administered subcutaneously (s.c., under the skin) once weekly, in the thigh, abdomen, or upper arm, at any time of day irrespective of meals. Sitagliptin placebo (0 mg) administered orally once daily."}]
     (is (= expected-group-info found-group-info))))
-    
+
+(deftest baseline-var-rdf-categorical-test
+  (let [age-customised-xml           (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
+        idx                          0
+        baseline-uri                 [:qname :instance "baseline-uri"]
+        baseline-uris                [baseline-uri]
+        mm-uri                       [:qname :instance "mm-uri"]
+        mm-uris                      {[:baseline] mm-uri}
+        [found-categories found-rdf] (baseline-var-rdf age-customised-xml idx baseline-uris mm-uris)
+        expected-categories          '("85 years and over"  "Adults (18-64 years)" "From 65-84 years")
+        expected-first-category-rdf  '([[:qname :rdfs "label"]
+                                        [:lit "Adults (18-64 years)"]]
+                                       [[:qname :rdf "type"]
+                                        [:qname :ontology "Category"]])
+        expected-properties          '([:qname :rdf "type"]
+                                       [:qname :rdfs "label"]
+                                       [:qname :ontology "is_measured_at"]
+                                       [:qname :ontology "of_variable"]
+                                       [:qname :ontology "has_result_property"]
+                                       [:qname :ontology "has_result_property"])]
+    (is (lib/same-ignoring-order? expected-categories (keys (:uris found-categories))))
+    (is (= (count (:rdfs found-categories)) (count (:uris found-categories))))
+    (is (= expected-first-category-rdf (second (first (:rdfs found-categories)))))
+    (is (= baseline-uri (first found-rdf)))
+    (is (= expected-properties (map first (second found-rdf))))))
+
+; (deftest baseline-measurements-categorical-test
+;   (let [baseline-sample-size-xml (vtd/at sustain-5-xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed")
+;         age-customised-xml       (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
+;         idx                      0
+;         baseline-uri             [:qname :instance "baseline-uri"]
+;         baseline-uris            [baseline-uri]
+;         mm-uri                       [:qname :instance "mm-uri"]
+;         mm-uris                      {[:baseline] mm-uri}
+;         group-uris 
+;         found-measurements       (baseline-measurements
+;                                   age-customised-xml idx
+;                                   baseline-sample-size-xml
+;                                   baseline-uris group-uris
+;                                   mm-uris category-uris)]))
+
+(deftest baseline-measurement-data-rdf-categorical-test
+  (let [subj               [:qname :instance "measurement-uuid"]
+        age-customised-xml (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
+        sample-size-xml    (vtd/at sustain-5-xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed")
+        group-id           "B1"
+        category-uris      {"Adults (18-64 years)" [:qname :instance "adults"]
+                            "From 65-84 years"     [:qname :instance "pensioners"]
+                            "85 years and over"    [:qname :instance "octogenarians"]}
+        expected-data      [[:qname :instance "measurement-uuid"]
+                            '([[:qname :ontology "category_count"]
+                               [:blank
+                                ([[:qname :ontology "category"] 
+                                   [:qname :instance "adults"]]
+                                  [[:qname :ontology "count"] [:lit 93]])]]
+                              [[:qname :ontology "category_count"]
+                               [:blank
+                                ([[:qname :ontology "category"] 
+                                   [:qname :instance "pensioners"]]
+                                  [[:qname :ontology "count"] [:lit 39]])]]
+                              [[:qname :ontology "category_count"]
+                               [:blank
+                                ([[:qname :ontology "category"] 
+                                   [:qname :instance "octogenarians"]]
+                                  [[:qname :ontology "count"] [:lit 0]])]])]
+
+        found-data         (baseline-measurement-data-rdf subj age-customised-xml 
+                                                          sample-size-xml group-id 
+                                                          category-uris)]
+    (is (= expected-data found-data))))
+
 (def test-xml (vtd/navigator (slurp "test/app/testxml3.xml")))
 
 (deftest testxml-3
@@ -230,5 +299,5 @@
 
 (deftest testxml-sustain2
   (let [imported-rdf (import-xml (vtd/navigator (slurp "test/app/sustain-2.xml")))]
-    (spit "out-sustain.rdf" imported-rdf)
+    ; (spit "out-sustain.rdf" imported-rdf)
     (is (= 262265 (count imported-rdf)))))
