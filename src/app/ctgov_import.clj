@@ -328,7 +328,7 @@
                                      (lib/text-at %2 "./sub_title")
                                      (lib/text-at %2 "./title")
                                      (lib/text-at %2 "../../title")))])
-                   (cond-count (vtd/attr                   ; this is arg 2 (threading macro)
+                   (cond-count (vtd/attr      ; this is arg 2 (threading macro)
                                 (vtd/at %2 measurement-query)
                                 "value")))])
             subj
@@ -401,7 +401,7 @@
       (:simple props) (measurement-data-rdf-basic subj reported-properties sample-size-xml measure-xml group-id)
       (and (:categories props)
            (nil? (:dispersion props))
-           (= (:param props) "Count of Participants"))
+           (contains? #{"Count of Participants" "Number"} (:param props)))
       (measurement-data-rdf-categorical subj measure-xml group-id category-uris)
       :else subj)))
 
@@ -410,11 +410,17 @@
   (let [group-id-query ".//category_list/category/measurement_list/measurement/@group_id"
         groups         (set (map vtd/text (vtd/search xml group-id-query)))
         m-meta         (into {}
-                             (map (fn [group] [group (lib/measurement-meta-rdf (trig/iri :instance (lib/uuid))
-                                                                               (baseline-uris idx)
-                                                                               (group-uris [:baseline_group group])
-                                                                               (mm-uris [:baseline]))]) groups))]
-    (map (fn [[group subj]] (baseline-measurement-data-rdf subj xml sample-size-xml group category-uris)) m-meta)))
+                             (map (fn [group] 
+                                    [group (lib/measurement-meta-rdf 
+                                            (trig/iri :instance (lib/uuid))
+                                            (baseline-uris idx)
+                                            (group-uris [:baseline_group group])
+                                            (mm-uris [:baseline]))]) 
+                                  groups))]
+    (map (fn [[group subj]] 
+           (baseline-measurement-data-rdf subj xml sample-size-xml 
+                                          group category-uris)) 
+         m-meta)))
 
 (defn event-measurement-rdf
   [xml event-uri group-uri mm-uri]
