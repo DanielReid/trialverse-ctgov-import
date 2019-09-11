@@ -4,7 +4,6 @@
    [clojure.string :refer [lower-case]]
    [riveted.core :as vtd]
    [app.design-parse :refer [parse-masking]]
-   [clojure.set :refer [map-invert]]
    [org.drugis.addis.rdf.trig :as trig]))
 
 (defn row-label-sample-size
@@ -174,11 +173,11 @@
         [categories of-var-rdf] (baseline-var-type props)
         subj                    (trig/spo
                                  uri
-                                 [(trig/iri :rdf "type") 
+                                 [(trig/iri :rdf "type")
                                   (trig/iri :ontology "PopulationCharacteristic")]
-                                 [(trig/iri :rdfs "label") 
+                                 [(trig/iri :rdfs "label")
                                   (trig/lit var-name)]
-                                 [(trig/iri :ontology "is_measured_at") 
+                                 [(trig/iri :ontology "is_measured_at")
                                   (mm-uris [:baseline])]
                                  of-var-rdf)]
     [categories
@@ -188,7 +187,8 @@
                       (trig/iri :ontology "sample_size")])
            (lib/spo-each (trig/iri :ontology "has_result_property")
                          (map #(trig/iri :ontology %) (keys properties))))
-       subj)]))
+       (lib/spo-each subj (trig/iri :ontology "has_result_property")
+                     (map #(trig/iri :ontology %) (keys properties))))]))
 
 
 (defn adverse-event-rdf
@@ -469,7 +469,7 @@
         events-rdf               (map #(adverse-event-rdf %1 %2 event-uris mm-uris) event-xml (iterate inc 1))
         baseline-xml             (vtd/search xml "/clinical_study/clinical_results/baseline/measure_list/measure")
         baseline-sample-size-xml (vtd/at xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed")
-        baseline-var-xml         (rest baseline-xml)
+        baseline-var-xml         baseline-xml
         baseline-uris            (into {} (map #(vector %2 (trig/iri :instance (lib/uuid)))
                                                baseline-var-xml (iterate inc 1)))
         baseline-data            (map #(baseline-var-rdf %1 %2 baseline-uris mm-uris)

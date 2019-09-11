@@ -7,6 +7,13 @@
 
 (def sustain-2-xml (vtd/navigator (slurp "test/app/sustain-2.xml")))
 (def sustain-5-xml (vtd/navigator (slurp "test/app/sustain5ctgov.xml")))
+(def age-baseline-xml (first (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure")))
+(def age-categorical-xml (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure")))
+(def sex-baseline-xml (second (vtd/search sustain-2-xml "/clinical_study/clinical_results/baseline/measure_list/measure")))
+(def hba1c-change-xml (first (vtd/search sustain-2-xml "/clinical_study/clinical_results/outcome_list/outcome")))
+(def sample-size-xml  (vtd/at sustain-5-xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed"))
+(def mm-uri  [:qname :instance "mm-uri"])
+(def mm-uris {[:baseline] mm-uri})
 
 (def time-frame-xml-str
   "<clinical_study>
@@ -40,9 +47,7 @@
            (vals found-mm-info)))))
 
 (deftest baseline-measurement-properties-continuous-test
-  (let [age-baseline-xml    (first
-                             (vtd/search sustain-2-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
-        found-properties    (baseline-measurement-properties age-baseline-xml)
+  (let [found-properties    (baseline-measurement-properties age-baseline-xml)
         expected-properties {:categories '()
                              :simple     true
                              :param      "Mean"
@@ -52,15 +57,13 @@
     (is (= expected-properties found-properties))))
 
 (deftest baseline-measurement-properties-categorical-test
-  (let [sex-baseline-xml    (second
-                             (vtd/search sustain-2-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
-        found-properties    (baseline-measurement-properties sex-baseline-xml)
-        expected-properties {:categories '("Female", "Male"),
-                             :simple     false,
-                             :param      "Count of Participants",
-                             :dispersion nil,
+  (let [found-properties    (baseline-measurement-properties sex-baseline-xml)
+        expected-properties {:categories '("Female", "Male")
+                             :simple     false
+                             :param      "Count of Participants"
+                             :dispersion nil
                              :units      "Participants"}]
-    
+
     (is (= expected-properties found-properties))))
 
 (deftest find-adverse-events-xml-test
@@ -133,9 +136,7 @@
                          mm-uris))))))
 
 (deftest outcome-measurement-properties-test
-  (let [hba1c-change-xml    (first
-                             (vtd/search sustain-2-xml "/clinical_study/clinical_results/outcome_list/outcome"))
-        found-properties    (outcome-measurement-properties hba1c-change-xml)
+  (let [found-properties    (outcome-measurement-properties hba1c-change-xml)
         expected-properties {:simple     true
                              :categories ()
                              :param      "Least Squares Mean"
@@ -212,7 +213,7 @@
         found-categories (baseline-var-type {:categories category-ids
                                              :param      param})]
     (is (=  expected-values found-categories))))
-  
+
 (deftest group-info-test
   (let [group-xml           (first
                              (vtd/search sustain-2-xml "/clinical_study/clinical_results/participant_flow/group_list/group"))
@@ -221,14 +222,32 @@
                              :description "Semaglutide 0.5 mg administered subcutaneously (s.c., under the skin) once weekly, in the thigh, abdomen, or upper arm, at any time of day irrespective of meals. Sitagliptin placebo (0 mg) administered orally once daily."}]
     (is (= expected-group-info found-group-info))))
 
-(deftest baseline-var-rdf-categorical-test
-  (let [age-customised-xml           (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
-        idx                          0
+(deftest baseline-var-rdf-continuous-test
+  (let [idx                          0
         baseline-uri                 [:qname :instance "baseline-uri"]
         baseline-uris                [baseline-uri]
-        mm-uri                       [:qname :instance "mm-uri"]
-        mm-uris                      {[:baseline] mm-uri}
-        [found-categories found-rdf] (baseline-var-rdf age-customised-xml idx baseline-uris mm-uris)
+        [found-categories found-rdf] (baseline-var-rdf age-baseline-xml idx baseline-uris mm-uris)
+        expected-rdf                 [[:qname :instance "baseline-uri"]
+                                      '([[:qname :rdf "type"] [:qname :ontology "PopulationCharacteristic"]]
+                                        [[:qname :rdfs "label"] [:lit "Age"]]
+                                        [[:qname :ontology "is_measured_at"] [:qname :instance "mm-uri"]]
+                                        [[:qname :ontology "of_variable"]
+                                         [:blank
+                                          ([[:qname :rdf "type"] [:qname :ontology "Variable"]]
+                                           [[:qname :ontology "measurementType"] [:qname :ontology "continuous"]])]]
+                                        [[:qname :ontology "has_result_property"]
+                                         [:qname :ontology "mean"]]
+                                        [[:qname :ontology "has_result_property"]
+                                         [:qname :ontology "standard_deviation"]])]]
+    (is (= nil found-categories))
+    (is (= expected-rdf found-rdf))))
+
+(deftest baseline-var-rdf-categorical-test
+  (let [idx                          0
+        baseline-uri                 [:qname :instance "baseline-uri"]
+        baseline-uris                [baseline-uri]
+        [found-categories found-rdf] (baseline-var-rdf age-categorical-xml idx baseline-uris mm-uris)
+        _ (println found-rdf)
         expected-categories          '("85 years and over"  "Adults (18-64 years)" "From 65-84 years")
         expected-first-category-rdf  '([[:qname :rdfs "label"]
                                         [:lit "Adults (18-64 years)"]]
@@ -246,25 +265,21 @@
     (is (= baseline-uri (first found-rdf)))
     (is (= expected-properties (map first (second found-rdf))))))
 
-; (deftest baseline-measurements-categorical-test
-;   (let [baseline-sample-size-xml (vtd/at sustain-5-xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed")
-;         age-customised-xml       (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
-;         idx                      0
-;         baseline-uri             [:qname :instance "baseline-uri"]
-;         baseline-uris            [baseline-uri]
-;         mm-uri                       [:qname :instance "mm-uri"]
-;         mm-uris                      {[:baseline] mm-uri}
-;         group-uris 
-;         found-measurements       (baseline-measurements
-;                                   age-customised-xml idx
-;                                   baseline-sample-size-xml
-;                                   baseline-uris group-uris
-;                                   mm-uris category-uris)]))
+(deftest baseline-measurement-data-rdf-continuous-test
+  (let [subj            [:qname :instance "measurement-uuid"]
+        group-id        "B1"
+        category-uris   {}
+        expected-data   [[:qname :instance "measurement-uuid"]
+                         '([[:qname :ontology "sample_size"] [:lit 132]]
+                           [[:qname :ontology "mean"] [:lit 59.1]]
+                           [[:qname :ontology "standard_deviation"] [:lit 10.3]])]
+        found-data      (baseline-measurement-data-rdf subj age-baseline-xml
+                                                       sample-size-xml group-id
+                                                       category-uris)]
+    (is (= expected-data found-data))))
 
 (deftest baseline-measurement-data-rdf-categorical-test
   (let [subj               [:qname :instance "measurement-uuid"]
-        age-customised-xml (second (vtd/search sustain-5-xml "/clinical_study/clinical_results/baseline/measure_list/measure"))
-        sample-size-xml    (vtd/at sustain-5-xml "/clinical_study/clinical_results/baseline/analyzed_list/analyzed")
         group-id           "B1"
         category-uris      {"Adults (18-64 years)" [:qname :instance "adults"]
                             "From 65-84 years"     [:qname :instance "pensioners"]
@@ -272,22 +287,22 @@
         expected-data      [[:qname :instance "measurement-uuid"]
                             '([[:qname :ontology "category_count"]
                                [:blank
-                                ([[:qname :ontology "category"] 
-                                   [:qname :instance "adults"]]
-                                  [[:qname :ontology "count"] [:lit 93]])]]
+                                ([[:qname :ontology "category"]
+                                  [:qname :instance "adults"]]
+                                 [[:qname :ontology "count"] [:lit 93]])]]
                               [[:qname :ontology "category_count"]
                                [:blank
-                                ([[:qname :ontology "category"] 
-                                   [:qname :instance "pensioners"]]
-                                  [[:qname :ontology "count"] [:lit 39]])]]
+                                ([[:qname :ontology "category"]
+                                  [:qname :instance "pensioners"]]
+                                 [[:qname :ontology "count"] [:lit 39]])]]
                               [[:qname :ontology "category_count"]
                                [:blank
-                                ([[:qname :ontology "category"] 
-                                   [:qname :instance "octogenarians"]]
-                                  [[:qname :ontology "count"] [:lit 0]])]])]
+                                ([[:qname :ontology "category"]
+                                  [:qname :instance "octogenarians"]]
+                                 [[:qname :ontology "count"] [:lit 0]])]])]
 
-        found-data         (baseline-measurement-data-rdf subj age-customised-xml 
-                                                          sample-size-xml group-id 
+        found-data         (baseline-measurement-data-rdf subj age-categorical-xml
+                                                          sample-size-xml group-id
                                                           category-uris)]
     (is (= expected-data found-data))))
 
@@ -295,9 +310,14 @@
 
 (deftest testxml-3
   (let [imported-rdf (import-xml test-xml)]
-    (is (= 372987 (count imported-rdf)))))
+    (is (= 374545 (count imported-rdf)))))
 
 (deftest testxml-sustain2
   (let [imported-rdf (import-xml (vtd/navigator (slurp "test/app/sustain-2.xml")))]
-    ; (spit "out-sustain.rdf" imported-rdf)
-    (is (= 262265 (count imported-rdf)))))
+    ; (spit "out-sustain2.rdf" imported-rdf)
+    (is (= 264615 (count imported-rdf)))))
+
+(deftest testxml-sustain5
+  (let [imported-rdf (import-xml (vtd/navigator (slurp "test/app/sustain5ctgov.xml")))]
+    ; (spit "out-sustain5.rdf" imported-rdf)
+    (is (= 121919 (count imported-rdf)))))
