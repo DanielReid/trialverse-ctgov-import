@@ -46,6 +46,15 @@
              "Baseline")
            (vals found-mm-info)))))
 
+(deftest test-allocation-rdf
+  (let [subj [:qname :instance "something"]]
+    (is (= [subj [[[:qname :ontology "has_allocation"] 
+                  [:qname :ontology "AllocationRandomized"]]]]
+           (allocation-rdf subj "Randomized")))
+    (is (= [subj [[[:qname :ontology "has_allocation"] 
+                   [:qname :ontology "AllocationNonRandomized"]]]]
+           (allocation-rdf subj "SomethingElse")))))
+
 (deftest baseline-measurement-properties-continuous-test
   (let [found-properties    (baseline-measurement-properties age-baseline-xml)
         expected-properties {:categories '()
@@ -310,14 +319,14 @@
 
 (deftest testxml-3
   (let [imported-rdf (import-xml test-xml)]
-    (is (= 374545 (count imported-rdf)))))
+    (is (= 374542 (count imported-rdf)))))
 
 (deftest testxml-sustain2
   (let [imported-rdf (import-xml (vtd/navigator (slurp "test/app/sustain-2.xml")))]
     ; (spit "out-sustain2.rdf" imported-rdf)
-    (is (= 264615 (count imported-rdf)))))
+    (is (= 264612 (count imported-rdf)))))
 
 (deftest testxml-sustain5
   (let [imported-rdf (import-xml (vtd/navigator (slurp "test/app/sustain5ctgov.xml")))]
     ; (spit "out-sustain5.rdf" imported-rdf)
-    (is (= 121919 (count imported-rdf)))))
+    (is (= 121916 (count imported-rdf)))))

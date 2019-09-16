@@ -446,7 +446,7 @@
 (defn allocation-rdf [subj allocation]
   (if allocation
     (trig/spo subj [(trig/iri :ontology "has_allocation")
-                    (if (= "Randomized" (first allocation))
+                    (if (= "Randomized" allocation)
                       (trig/iri :ontology "AllocationRandomized")
                       (trig/iri :ontology "AllocationNonRandomized"))])
     subj))
